@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+     "lib": [
+        "es5",
+        "es6",
+        "es2022"
+     ],
+     "target": "es2015",
+     "module": "node16",
+     "moduleResolution": "node16",
+     "esModuleInterop": true,
+     "resolveJsonModule": true,
+     "rootDir": ".",
+     "outDir": "./build",
+     "emitDecoratorMetadata": true,
+     "experimentalDecorators": true,
+     "sourceMap": true
+  },
+  "include": ["src/**/*", "server.ts"],
+  "exclude": ["node_modules", "build"]
+}
