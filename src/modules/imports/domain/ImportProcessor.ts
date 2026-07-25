@@ -4,7 +4,8 @@ import { ImportRepository, AcceptedTransactionInput, RejectedRecordInput } from 
 import { FileStorage } from "./ports/FileStorage";
 import { RiskScorer } from "./ports/RiskScorer";
 import { Logger } from "../../../shared/ports/Logger";
-import { parseNdjsonLines, ParsedLine } from "./parsing/ndjsonLines";
+import { parseNdjsonLines, ParsedLine } from "../../../shared/utils/ndjsonLines";
+import { capJsonValue } from "../../../shared/utils/capJsonValue";
 import { normalizeRecord } from "./transaction/normalize";
 import { transactionSchema } from "./transaction/transaction.schema";
 import { calculateFingerprint } from "./transaction/fingerprint";
@@ -20,14 +21,7 @@ export interface ImportProcessorDeps {
 }
 
 function capRawValue(value: unknown): unknown {
-  const json = JSON.stringify(value);
-  if (json === undefined) {
-    return null;
-  }
-  if (json.length <= MAX_RAW_VALUE_CHARS) {
-    return value;
-  }
-  return { truncated: true, preview: json.slice(0, MAX_RAW_VALUE_CHARS) };
+  return capJsonValue(value, MAX_RAW_VALUE_CHARS);
 }
 
 export class ImportProcessor {

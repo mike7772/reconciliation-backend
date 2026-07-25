@@ -8,16 +8,12 @@ import {
   ImportSummary,
   RejectionPage,
 } from "../domain/ports/ImportRepository";
+import { encodeCursor, decodeCursor } from "../../../shared/utils/cursor";
 
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 
-function encodeCursor(lineNumber: number, id: string): string {
-  return Buffer.from(`${lineNumber}:${id}`).toString("base64url");
-}
-
-function decodeCursor(cursor: string): { lineNumber: number; id: string } {
-  const decoded = Buffer.from(cursor, "base64url").toString("utf8");
-  const [lineNumberStr, id] = decoded.split(":");
+function decodeRejectionCursor(cursor: string): { lineNumber: number; id: string } {
+  const [lineNumberStr, id] = decodeCursor(cursor);
   return { lineNumber: Number(lineNumberStr), id };
 }
 
@@ -218,7 +214,7 @@ export class PrismaImportRepository implements ImportRepository {
     limit: number,
     cursor: string | null
   ): Promise<RejectionPage> {
-    const decoded = cursor ? decodeCursor(cursor) : null;
+    const decoded = cursor ? decodeRejectionCursor(cursor) : null;
 
     const rows = await this.prisma.rejectedRecord.findMany({
       where: {
@@ -248,7 +244,7 @@ export class PrismaImportRepository implements ImportRepository {
         message: r.message,
         rawValue: r.rawValue,
       })),
-      nextCursor: hasMore && last ? encodeCursor(last.lineNumber, last.id) : null,
+      nextCursor: hasMore && last ? encodeCursor([last.lineNumber, last.id]) : null,
     };
   }
 }
