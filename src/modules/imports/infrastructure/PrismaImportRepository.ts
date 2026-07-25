@@ -9,8 +9,30 @@ import {
   RejectionPage,
 } from "../domain/ports/ImportRepository";
 import { encodeCursor, decodeCursor } from "../../../shared/utils/cursor";
+import { RetryPolicy } from "../../../shared/ports/RetryPolicy";
 
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
+
+// Transient/infrastructure failures worth retrying: connection issues,
+// timeouts, and write conflicts/deadlocks under concurrent batch commits.
+// Deliberately excludes constraint violations, validation errors, and
+// anything else that would just fail identically on a retry.
+const RETRYABLE_PRISMA_ERROR_CODES = new Set([
+  "P1001", // can't reach database server
+  "P1002", // database timed out
+  "P1008", // operation timed out
+  "P1017", // server closed the connection
+  "P2024", // timed out fetching a connection from the pool
+  "P2028", // transaction API error
+  "P2034", // write conflict or deadlock
+]);
+
+function isRetryableDbError(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return RETRYABLE_PRISMA_ERROR_CODES.has(err.code);
+  }
+  return err instanceof Prisma.PrismaClientInitializationError;
+}
 
 function decodeRejectionCursor(cursor: string): { lineNumber: number; id: string } {
   const [lineNumberStr, id] = decodeCursor(cursor);
@@ -18,7 +40,10 @@ function decodeRejectionCursor(cursor: string): { lineNumber: number; id: string
 }
 
 export class PrismaImportRepository implements ImportRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly retryPolicy: RetryPolicy
+  ) {}
 
   async createPendingImport(input: CreateImportInput): Promise<Import | null> {
     try {
@@ -119,7 +144,29 @@ export class PrismaImportRepository implements ImportRepository {
   }
 
   async commitBatch(importId: string, input: CommitBatchInput): Promise<CommitBatchResult> {
+    return this.retryPolicy.execute("commitBatch", () => this.commitBatchOnce(importId, input), isRetryableDbError);
+  }
+
+  private async commitBatchOnce(
+    importId: string,
+    input: CommitBatchInput
+  ): Promise<CommitBatchResult> {
     return this.prisma.$transaction(async (tx) => {
+      // Idempotency guard: if a prior attempt's transaction actually
+      // committed but its success never reached the caller (e.g. the
+      // connection dropped right after commit, triggering a retry), the
+      // checkpoint will already be at or past this batch's target. Without
+      // this check, retrying would re-run correctly for the row inserts
+      // (skipDuplicates makes those safe) but would double-count the
+      // increment-based counters below, which are not naturally idempotent.
+      const current = await tx.import.findUniqueOrThrow({
+        where: { id: importId },
+        select: { checkpointLineNumber: true },
+      });
+      if (current.checkpointLineNumber >= input.checkpointLineNumber) {
+        return { acceptedCount: 0, duplicateCount: 0 };
+      }
+
       let acceptedCount = 0;
       if (input.acceptedTransactions.length > 0) {
         const created = await tx.transaction.createMany({
