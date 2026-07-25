@@ -1,7 +1,6 @@
 export interface CurrentUser {
   id: string;
   email: string;
-  role: number;
 }
 
 declare global {

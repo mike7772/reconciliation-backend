@@ -15,7 +15,6 @@ model User {
   name         String
   email        String   @unique
   password     String
-  role         Int      @default(2148)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

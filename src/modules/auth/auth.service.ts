@@ -8,13 +8,13 @@ import httpStatusCodes from "../../shared/constants/httpStatusCodes";
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1d";
 
-function signToken(user: { id: string; email: string; role: number }) {
+function signToken(user: { id: string; email: string }) {
   const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
-  return { token, user: { id: user.id, email: user.email, role: user.role } };
+  return { token, user: { id: user.id, email: user.email } };
 }
 
 export async function register(input: RegisterInput) {
