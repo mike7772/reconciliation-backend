@@ -10,6 +10,13 @@ export function createLiveHandler() {
 
 export function createReadyHandler(container: Container) {
   return async (_req: Request, res: Response): Promise<void> => {
+    if (container.readiness.isShuttingDown()) {
+      res
+        .status(httpStatusCodes.SERVICE_UNAVAILABLE)
+        .json({ status: "not_ready", reason: "shutting_down" });
+      return;
+    }
+
     const checks: Record<string, boolean> = {};
 
     try {

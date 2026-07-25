@@ -5,9 +5,12 @@ import { WriteStream } from "fs";
 import * as path from "path";
 import rateLimiter from "./shared/middleware/rateLimit";
 import requestId from "./shared/middleware/requestId";
+import httpMetrics from "./shared/middleware/httpMetrics";
+import { startEventLoopUtilizationGauge } from "./shared/adapters/eventLoopUtilization";
 import { createUncaughtErrorHandler } from "./shared/errors/errorHandler";
 import Routes from "./routes";
 import { Container } from "./composition/container";
+import { startQueueMetricsPolling } from "./modules/imports/imports.composition";
 import cors from "cors";
 import helmet from "helmet";
 import session from "express-session";
@@ -26,6 +29,9 @@ export default class Server {
     // Error-handling middleware must be registered after routes so it can
     // actually catch errors passed via next(err) from route handlers.
     app.use(createUncaughtErrorHandler(container.logger));
+
+    startEventLoopUtilizationGauge(container.metrics);
+    startQueueMetricsPolling(container);
 
     process.on("beforeExit", (code) => {
       container.logger.info("Process beforeExit", { code });
@@ -57,6 +63,7 @@ export default class Server {
     };
 
     app.use(requestId);
+    app.use(httpMetrics(this.container.metrics));
     app.use("/public", estatic(__dirname + "/public"));
     app.use(morgan("dev"));
     app.use(morgan("combined", { stream: accessLogStream }));

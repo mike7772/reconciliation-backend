@@ -3,7 +3,10 @@ import { RiskLevel } from "@prisma/client";
 import { ImportRepository, AcceptedTransactionInput, RejectedRecordInput } from "./ports/ImportRepository";
 import { FileStorage } from "./ports/FileStorage";
 import { RiskScorer } from "./ports/RiskScorer";
+import { JobQueue } from "./ports/JobQueue";
 import { Logger } from "../../../shared/ports/Logger";
+import { MetricsRecorder } from "../../../shared/ports/MetricsRecorder";
+import { ShutdownSignal } from "../../../shared/state/ShutdownSignal";
 import { parseNdjsonLines, ParsedLine } from "../../../shared/utils/ndjsonLines";
 import { capJsonValue } from "../../../shared/utils/capJsonValue";
 import { normalizeRecord } from "./transaction/normalize";
@@ -17,7 +20,10 @@ export interface ImportProcessorDeps {
   importRepository: ImportRepository;
   fileStorage: FileStorage;
   riskScorer: RiskScorer;
+  jobQueue: JobQueue;
   logger: Logger;
+  metrics: MetricsRecorder;
+  shutdownSignal: ShutdownSignal;
 }
 
 function capRawValue(value: unknown): unknown {
@@ -46,8 +52,22 @@ export class ImportProcessor {
       return;
     }
 
+    const metrics = this.deps.metrics;
+    const startNs = process.hrtime.bigint();
+    metrics.incrementGauge("active_imports");
+
+    const finish = (outcome: "completed" | "failed" | "cancelled" | "paused"): void => {
+      const durationSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
+      metrics.observeHistogram("import_duration_seconds", durationSeconds, { outcome });
+      metrics.decrementGauge("active_imports");
+      if (outcome === "failed") {
+        metrics.incrementCounter("import_processing_failures_total");
+      }
+    };
+
     if (importRow.cancelRequested) {
       await importRepository.markCancelled(importId);
+      finish("cancelled");
       return;
     }
 
@@ -55,6 +75,7 @@ export class ImportProcessor {
     if (!uploadedFile) {
       await importRepository.markFailed(importId, "Uploaded file metadata missing");
       logger.error("Uploaded file metadata missing", { importId });
+      finish("failed");
       return;
     }
 
@@ -72,6 +93,7 @@ export class ImportProcessor {
         importId,
         error: (err as Error).message,
       });
+      finish("failed");
       return;
     }
 
@@ -87,7 +109,7 @@ export class ImportProcessor {
       );
       const lastLine = batch[batch.length - 1];
 
-      await importRepository.commitBatch(importId, {
+      const result = await importRepository.commitBatch(importId, {
         acceptedTransactions: accepted,
         rejectedRecords: rejected,
         // Counts only non-empty lines, so processed === accepted + rejected
@@ -98,13 +120,38 @@ export class ImportProcessor {
         checkpointLineNumber: lastLine.lineNumber,
       });
 
+      metrics.incrementCounter("records_processed_total", {}, processedCount);
+      metrics.incrementCounter("records_accepted_total", {}, result.acceptedCount);
+      metrics.incrementCounter("records_rejected_total", {}, rejected.length);
+      metrics.incrementCounter("records_duplicate_total", {}, result.duplicateCount);
+
       batch = [];
 
       const current = await importRepository.findById(importId);
       if (current?.cancelRequested) {
         await importRepository.markCancelled(importId);
+        finish("cancelled");
         return false;
       }
+
+      if (this.deps.shutdownSignal.isShuttingDown()) {
+        // Distinct from cancellation: leave status as "processing" (already
+        // set) rather than marking it cancelled - the checkpoint just
+        // written is durable, so whichever worker picks this job up next
+        // resumes from exactly here instead of restarting the whole file.
+        //
+        // Re-enqueue *before* returning: this processor function is about
+        // to resolve normally, which BullMQ treats as the job succeeding -
+        // with removeOnComplete it would otherwise vanish with nothing
+        // left to ever pick this import back up. A fresh job now waits in
+        // the queue for whenever a worker (this one restarted, or another)
+        // is next available.
+        await this.deps.jobQueue.enqueueImportProcessing(importId);
+        logger.info("Pausing import for shutdown at batch boundary", { importId });
+        finish("paused");
+        return false;
+      }
+
       return true;
     };
 
@@ -122,9 +169,11 @@ export class ImportProcessor {
 
       await importRepository.markCompleted(importId);
       logger.info("Import completed", { importId });
+      finish("completed");
     } catch (err) {
       logger.error("Import processing failed", { importId, error: (err as Error).message });
       await importRepository.markFailed(importId, "Processing failed unexpectedly");
+      finish("failed");
     }
   }
 

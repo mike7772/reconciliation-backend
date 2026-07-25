@@ -11,6 +11,8 @@ import { createPinoLogger } from "../shared/adapters/pinoLogger";
 import { SystemClock } from "../shared/adapters/systemClock";
 import { UuidIdGenerator } from "../shared/adapters/uuidIdGenerator";
 import { PromMetricsRecorder } from "../shared/adapters/promMetricsRecorder";
+import { ReadinessState } from "../shared/state/ReadinessState";
+import { ShutdownSignal } from "../shared/state/ShutdownSignal";
 
 export interface Container {
   logger: Logger;
@@ -26,6 +28,8 @@ export interface Container {
   // ioredis specifically; this is separate from the `redis` client above,
   // which is used for the app's own caching.
   queueConnection: IORedis;
+  readiness: ReadinessState;
+  shutdownSignal: ShutdownSignal;
 }
 
 export function buildContainer(): Container {
@@ -51,5 +55,7 @@ export function buildContainer(): Container {
     minio,
     minioBucket: MINIO_BUCKET,
     queueConnection,
+    readiness: new ReadinessState(),
+    shutdownSignal: new ShutdownSignal(),
   };
 }

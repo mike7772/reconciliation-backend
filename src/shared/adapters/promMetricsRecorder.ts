@@ -40,6 +40,18 @@ export class PromMetricsRecorder implements MetricsRecorder {
   }
 
   setGauge(name: string, value: number, labels: Record<string, string> = {}): void {
+    this.getOrCreateGauge(name, labels).set(labels, value);
+  }
+
+  incrementGauge(name: string, labels: Record<string, string> = {}, value = 1): void {
+    this.getOrCreateGauge(name, labels).inc(labels, value);
+  }
+
+  decrementGauge(name: string, labels: Record<string, string> = {}, value = 1): void {
+    this.getOrCreateGauge(name, labels).dec(labels, value);
+  }
+
+  private getOrCreateGauge(name: string, labels: Record<string, string>): Gauge<string> {
     let gauge = this.gauges.get(name);
     if (!gauge) {
       gauge = new Gauge({
@@ -50,6 +62,6 @@ export class PromMetricsRecorder implements MetricsRecorder {
       });
       this.gauges.set(name, gauge);
     }
-    gauge.set(labels, value);
+    return gauge;
   }
 }

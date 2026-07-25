@@ -38,15 +38,60 @@ export function buildImportService(container: Container): ImportService {
   });
 }
 
-export function buildImportProcessor(container: Container): ImportProcessor {
+const QUEUE_METRICS_POLL_INTERVAL_MS = 5000;
+
+/**
+ * Polls BullMQ job counts and republishes them as gauges. Runs in the API
+ * server process (which is what serves /metrics) using a lightweight,
+ * read-only Queue client - it never enqueues anything itself.
+ */
+export function startQueueMetricsPolling(container: Container): () => void {
+  const queue = new Queue<ImportJobData>(IMPORT_QUEUE_NAME, {
+    connection: container.queueConnection,
+  });
+
+  const interval = setInterval(async () => {
+    try {
+      const counts = await queue.getJobCounts("waiting", "active", "delayed", "failed");
+      container.metrics.setGauge("import_queue_waiting", counts.waiting ?? 0);
+      container.metrics.setGauge("import_queue_active", counts.active ?? 0);
+      container.metrics.setGauge("import_queue_delayed", counts.delayed ?? 0);
+      container.metrics.setGauge("import_queue_failed", counts.failed ?? 0);
+    } catch (err) {
+      container.logger.warn("Failed to poll queue metrics", {
+        error: (err as Error).message,
+      });
+    }
+  }, QUEUE_METRICS_POLL_INTERVAL_MS);
+  interval.unref();
+
+  return () => clearInterval(interval);
+}
+
+export interface ImportProcessorHandle {
+  processor: ImportProcessor;
+  /** Destroys the Piscina worker-thread pool - part of graceful shutdown. */
+  close: () => Promise<void>;
+}
+
+export function buildImportProcessor(container: Container): ImportProcessorHandle {
   const importRepository = new PrismaImportRepository(container.prisma, buildRetryPolicy(container));
   const fileStorage = new MinioFileStorage(container.minio, container.minioBucket);
   const riskScorer = new PiscinaRiskScorer();
+  const queue = new Queue<ImportJobData>(IMPORT_QUEUE_NAME, {
+    connection: container.queueConnection,
+  });
+  const jobQueue = new BullMqJobQueue(queue);
 
-  return new ImportProcessor({
+  const processor = new ImportProcessor({
     importRepository,
     fileStorage,
     riskScorer,
+    jobQueue,
     logger: container.logger.child({ module: "import-processor" }),
+    metrics: container.metrics,
+    shutdownSignal: container.shutdownSignal,
   });
+
+  return { processor, close: () => riskScorer.close() };
 }
