@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { WriteStream } from "fs";
 import * as path from "path";
 import rateLimiter from "./shared/middleware/rateLimit";
+import requestId from "./shared/middleware/requestId";
 import { createUncaughtErrorHandler } from "./shared/errors/errorHandler";
 import Routes from "./routes";
 import { Container } from "./composition/container";
@@ -55,6 +56,7 @@ export default class Server {
       credentials: true,
     };
 
+    app.use(requestId);
     app.use("/public", estatic(__dirname + "/public"));
     app.use(morgan("dev"));
     app.use(morgan("combined", { stream: accessLogStream }));

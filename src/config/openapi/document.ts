@@ -4,6 +4,7 @@ import registry from "./registry";
 // Side-effect imports: each module's *.openapi.ts registers its paths onto
 // the shared registry above. Add new modules here as they're built.
 import "../../modules/auth/auth.openapi";
+import "../../modules/imports/imports.openapi";
 
 export default function generateOpenApiDocument() {
   const generator = new OpenApiGeneratorV3(registry.definitions);
