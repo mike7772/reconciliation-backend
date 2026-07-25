@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { ZodType } from "../utils/zod";
+import { ZodType } from "./zod";
 import httpStatusCodes from "../constants/httpStatusCodes";
 import errorMessages from "../constants/errorMessages";
 

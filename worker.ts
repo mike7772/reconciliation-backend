@@ -5,7 +5,7 @@ import { Worker } from "bullmq";
 import { buildContainer } from "./src/composition/container";
 import checkConnections from "./src/config/checkConnections";
 import { buildImportProcessor } from "./src/modules/imports/imports.composition";
-import { IMPORT_QUEUE_NAME, ImportJobData } from "./src/modules/imports/infrastructure/BullMqJobQueue";
+import { IMPORT_QUEUE_NAME, ImportJobData } from "./src/modules/imports/imports.jobQueue";
 import { startMetricsHttpServer } from "./src/shared/adapters/metricsHttpServer";
 import { registerGracefulShutdown } from "./src/shared/utils/gracefulShutdown";
 

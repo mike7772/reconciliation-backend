@@ -1,4 +1,4 @@
-import { z } from "../../shared/utils/zod";
+import { z } from "../../shared/validation/zod";
 
 export const registerSchema = z.object({
   name: z.string().min(1, "Name is required"),

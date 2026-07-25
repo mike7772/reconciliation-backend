@@ -1,4 +1,4 @@
-import { z } from "../../shared/utils/zod";
+import { z } from "../../shared/validation/zod";
 import registry, { BEARER_AUTH } from "../../config/openapi/registry";
 import { registerSchema, loginSchema } from "./auth.validation";
 

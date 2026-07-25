@@ -1,4 +1,4 @@
-import { calculateRiskScore, riskLevelFor, RiskScoreInput } from "../domain/transaction/riskScore";
+import { calculateRiskScore, riskLevelFor, RiskScoreInput } from "../utils/riskScore";
 
 // Piscina task entry point - runs inside a worker thread, not the main
 // event loop. Keep this file free of any Express/Prisma/BullMQ imports;

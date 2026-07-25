@@ -1,7 +1,7 @@
 import Piscina from "piscina";
 import * as path from "path";
-import { RiskScorer, RiskScoreResult } from "../domain/ports/RiskScorer";
-import { RiskScoreInput } from "../domain/transaction/riskScore";
+import { RiskScorer, RiskScoreResult } from "../ports/RiskScorer";
+import { RiskScoreInput } from "../utils/riskScore";
 
 // Worker threads spawned by Piscina don't inherit the parent process's
 // ts-node registration, so under `ts-node --transpile-only` (dev/this

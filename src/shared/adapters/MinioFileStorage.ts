@@ -1,6 +1,6 @@
 import { Client } from "minio";
 import { PassThrough, Readable } from "stream";
-import { FileStorage, StoredFileInfo } from "../domain/ports/FileStorage";
+import { FileStorage, StoredFileInfo } from "../ports/FileStorage";
 
 export class MinioFileStorage implements FileStorage {
   constructor(

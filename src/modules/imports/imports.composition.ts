@@ -1,11 +1,11 @@
 import { Queue } from "bullmq";
 import { Container } from "../../composition/container";
-import { ImportService } from "./domain/ImportService";
-import { ImportProcessor } from "./domain/ImportProcessor";
-import { PrismaImportRepository } from "./infrastructure/PrismaImportRepository";
-import { MinioFileStorage } from "./infrastructure/MinioFileStorage";
-import { PiscinaRiskScorer } from "./infrastructure/PiscinaRiskScorer";
-import { BullMqJobQueue, IMPORT_QUEUE_NAME, ImportJobData } from "./infrastructure/BullMqJobQueue";
+import { ImportService } from "./imports.service";
+import { ImportProcessor } from "./imports.processor";
+import { PrismaImportRepository } from "./imports.repository";
+import { MinioFileStorage } from "../../shared/adapters/MinioFileStorage";
+import { PiscinaRiskScorer } from "../../shared/adapters/PiscinaRiskScorer";
+import { BullMqJobQueue, IMPORT_QUEUE_NAME, ImportJobData } from "./imports.jobQueue";
 import { ExponentialBackoffRetryPolicy } from "../../shared/adapters/exponentialBackoffRetryPolicy";
 import { RetryPolicy } from "../../shared/ports/RetryPolicy";
 

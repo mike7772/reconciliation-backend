@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Busboy from "busboy";
-import { ImportService } from "./domain/ImportService";
+import { ImportService } from "./imports.service";
 import { providerIdSchema } from "./imports.validation";
 import { AppError } from "../../shared/errors/AppError";
 import sendError from "../../shared/utils/sendError";

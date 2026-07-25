@@ -1,5 +1,8 @@
 import { Queue } from "bullmq";
-import { JobQueue } from "../domain/ports/JobQueue";
+
+export interface JobQueue {
+  enqueueImportProcessing(importId: string): Promise<void>;
+}
 
 export const IMPORT_QUEUE_NAME = "import-processing";
 

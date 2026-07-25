@@ -1,4 +1,4 @@
-import { RiskScoreInput, RiskLevel } from "../transaction/riskScore";
+import { RiskScoreInput, RiskLevel } from "../utils/riskScore";
 
 export interface RiskScoreResult {
   score: number;

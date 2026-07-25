@@ -1,4 +1,4 @@
-import { z } from "../../shared/utils/zod";
+import { z } from "../../shared/validation/zod";
 import registry from "../../config/openapi/registry";
 import {
   importResponseSchema,

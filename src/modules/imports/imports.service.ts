@@ -1,12 +1,12 @@
 import { Readable } from "stream";
 import { Import } from "@prisma/client";
-import { ImportRepository, ImportSummary, RejectionPage } from "./ports/ImportRepository";
-import { FileStorage } from "./ports/FileStorage";
-import { JobQueue } from "./ports/JobQueue";
-import { IdGenerator } from "../../../shared/ports/IdGenerator";
-import { Logger } from "../../../shared/ports/Logger";
-import { AppError } from "../../../shared/errors/AppError";
-import httpStatusCodes from "../../../shared/constants/httpStatusCodes";
+import { ImportRepository, ImportSummary, RejectionPage } from "./imports.repository";
+import { FileStorage } from "../../shared/ports/FileStorage";
+import { JobQueue } from "./imports.jobQueue";
+import { IdGenerator } from "../../shared/ports/IdGenerator";
+import { Logger } from "../../shared/ports/Logger";
+import { AppError } from "../../shared/errors/AppError";
+import httpStatusCodes from "../../shared/constants/httpStatusCodes";
 
 export interface CreateImportParams {
   idempotencyKey: string;
