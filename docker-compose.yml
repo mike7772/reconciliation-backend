@@ -62,6 +62,57 @@ services:
       mc mb --ignore-existing local/${MINIO_BUCKET:-reconciliation-system};
       "
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reconciliation-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-reconciliation_user}:${POSTGRES_PASSWORD:-reconciliation_password}@postgres:5432/${POSTGRES_DB:-reconciliation_system}?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+    command: sh -c "npx prisma migrate deploy && node build/server.js"
+    ports:
+      - "${PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reconciliation-worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-reconciliation_user}:${POSTGRES_PASSWORD:-reconciliation_password}@postgres:5432/${POSTGRES_DB:-reconciliation_system}?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+    command: sh -c "npx prisma migrate deploy && node build/worker.js"
+    ports:
+      - "${WORKER_METRICS_PORT:-9465}:9465"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
 volumes:
   postgres_data:
   redis_data:

@@ -39,8 +39,13 @@ export default class Server {
   }
 
   public config(app: Application): void {
+    // Anchored to cwd (not __dirname) so this resolves the same whether
+    // running via ts-node from the project root or the compiled build/
+    // output, where __dirname sits one directory deeper.
+    const logsDir = path.join(process.cwd(), "logs");
+    fs.mkdirSync(logsDir, { recursive: true });
     const accessLogStream: WriteStream = fs.createWriteStream(
-      path.join(__dirname, "../logs/access.log"),
+      path.join(logsDir, "access.log"),
       { flags: "a" }
     );
 

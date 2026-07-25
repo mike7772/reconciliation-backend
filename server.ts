@@ -37,7 +37,7 @@ async function bootstrap(): Promise<void> {
   });
 
   httpServer
-    .listen(Number(process.env.PORT), "localhost", () => {
+    .listen(Number(process.env.PORT), "0.0.0.0", () => {
       container.logger.info("Server started", { port: process.env.PORT });
       console.info(`Server running on : http://localhost:${process.env.PORT}`);
     })
