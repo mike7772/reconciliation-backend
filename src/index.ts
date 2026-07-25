@@ -4,9 +4,9 @@ import * as fs from "fs";
 import { WriteStream } from "fs";
 import * as path from "path";
 import rateLimiter from "./shared/middleware/rateLimit";
-import { unCaughtErrorHandler } from "./shared/errors/errorHandler";
+import { createUncaughtErrorHandler } from "./shared/errors/errorHandler";
 import Routes from "./routes";
-import logger from "./config/logger";
+import { Container } from "./composition/container";
 import cors from "cors";
 import helmet from "helmet";
 import session from "express-session";
@@ -16,9 +16,19 @@ import * as swaggerUi from "swagger-ui-express";
 import generateOpenApiDocument from "./config/openapi/document";
 
 export default class Server {
-  constructor(app: Application) {
+  constructor(
+    app: Application,
+    private readonly container: Container
+  ) {
     this.config(app);
-    new Routes(app);
+    new Routes(app, container);
+    // Error-handling middleware must be registered after routes so it can
+    // actually catch errors passed via next(err) from route handlers.
+    app.use(createUncaughtErrorHandler(container.logger));
+
+    process.on("beforeExit", (code) => {
+      container.logger.info("Process beforeExit", { code });
+    });
   }
 
   public config(app: Application): void {
@@ -56,7 +66,6 @@ export default class Server {
     app.use(cookieParser());
     app.use(helmet());
     app.use(rateLimiter()); //  apply to all requests
-    app.use(unCaughtErrorHandler);
     app.set("trust proxy", false); // only if the server is behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
     app.use(
       session({
@@ -70,8 +79,3 @@ export default class Server {
     app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(generateOpenApiDocument()));
   }
 }
-
-process.on("beforeExit", function (err) {
-  logger.error(JSON.stringify(err));
-  console.error(err);
-});

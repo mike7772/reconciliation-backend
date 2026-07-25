@@ -6,6 +6,7 @@ const httpStatusCodes = {
     FORBIDDEN: 403,
     CONFLICT: 409,
     INTERNAL_SERVER: 500,
+    SERVICE_UNAVAILABLE: 503,
   };
   
   export default httpStatusCodes;

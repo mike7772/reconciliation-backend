@@ -1,36 +1,34 @@
 import { Request, Response, NextFunction } from "express";
-import * as winston from "winston";
+import { Logger } from "../ports/Logger";
 
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.json(),
-  defaultMeta: { service: "user-service" },
-  transports: [
-    new winston.transports.File({
-      filename: "error.log",
-      level: "error",
-    }),
-    new winston.transports.File({ filename: "combined.log" }),
-  ],
-});
-
-export function unCaughtErrorHandler(
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  logger.error(err);
-  res.end({ error: err });
+export function createUncaughtErrorHandler(logger: Logger) {
+  return function unCaughtErrorHandler(
+    err: any,
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): void {
+    logger.error("Unhandled request error", {
+      error: err instanceof Error ? err.message : err,
+      path: req.path,
+      method: req.method,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  };
 }
 
-export function apiErrorHandler(
-  err: any,
-  req: Request,
-  res: Response,
-  message: string
-) {
-  const error: object = { Message: message, Request: req, Stack: err };
-  logger.error(error);
-  res.json({ Message: message });
+export function createApiErrorHandler(logger: Logger) {
+  return function apiErrorHandler(
+    err: any,
+    req: Request,
+    res: Response,
+    message: string
+  ): void {
+    logger.error(message, {
+      error: err instanceof Error ? err.message : err,
+      path: req.path,
+      method: req.method,
+    });
+    res.json({ Message: message });
+  };
 }

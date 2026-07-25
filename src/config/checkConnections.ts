@@ -1,40 +1,38 @@
-import prisma from "./prisma";
-import redis from "./redis";
-import minio, { MINIO_BUCKET } from "./minio";
+import { Container } from "../composition/container";
 
 // Postgres is a hard dependency: if this throws, startup is aborted by the
 // caller. Redis and MinIO are best-effort: failures are logged, never thrown,
 // so the server still comes up without them.
 
-async function checkPostgres(): Promise<void> {
-  await prisma.$queryRaw`SELECT 1`;
-  console.info("Postgres: connected");
+async function checkPostgres(container: Container): Promise<void> {
+  await container.prisma.$queryRaw`SELECT 1`;
+  container.logger.info("Postgres: connected");
 }
 
-async function checkRedis(): Promise<void> {
+async function checkRedis(container: Container): Promise<void> {
   try {
-    await redis.connect();
-    await redis.ping();
-    console.info("Redis: connected");
+    await container.redis.connect();
+    await container.redis.ping();
+    container.logger.info("Redis: connected");
   } catch (err) {
-    console.warn(
-      `Redis: not reachable, continuing without it (${(err as Error).message})`
-    );
+    container.logger.warn("Redis: not reachable, continuing without it", {
+      error: (err as Error).message,
+    });
   }
 }
 
-async function checkMinio(): Promise<void> {
+async function checkMinio(container: Container): Promise<void> {
   try {
-    await minio.bucketExists(MINIO_BUCKET);
-    console.info("MinIO: connected");
+    await container.minio.bucketExists(container.minioBucket);
+    container.logger.info("MinIO: connected");
   } catch (err) {
-    console.warn(
-      `MinIO: not reachable, continuing without it (${(err as Error).message})`
-    );
+    container.logger.warn("MinIO: not reachable, continuing without it", {
+      error: (err as Error).message,
+    });
   }
 }
 
-export default async function checkConnections(): Promise<void> {
-  await checkPostgres();
-  await Promise.all([checkRedis(), checkMinio()]);
+export default async function checkConnections(container: Container): Promise<void> {
+  await checkPostgres(container);
+  await Promise.all([checkRedis(container), checkMinio(container)]);
 }

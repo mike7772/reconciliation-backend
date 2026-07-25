@@ -1,8 +1,11 @@
 import { Application } from "express";
 import authRoutes from "../modules/auth/auth.routes";
+import createHealthRoutes from "../modules/health/health.routes";
+import { Container } from "../composition/container";
 
 export default class Routes {
-  constructor(app: Application) {
+  constructor(app: Application, container: Container) {
+    app.use(createHealthRoutes(container));
     app.use("/api/auth", authRoutes);
   }
 }
