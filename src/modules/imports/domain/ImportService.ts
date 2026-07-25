@@ -1,6 +1,6 @@
 import { Readable } from "stream";
 import { Import } from "@prisma/client";
-import { ImportRepository } from "./ports/ImportRepository";
+import { ImportRepository, ImportSummary, RejectionPage } from "./ports/ImportRepository";
 import { FileStorage } from "./ports/FileStorage";
 import { JobQueue } from "./ports/JobQueue";
 import { IdGenerator } from "../../../shared/ports/IdGenerator";
@@ -97,5 +97,15 @@ export class ImportService {
       throw new AppError(httpStatusCodes.NOT_FOUND, "IMPORT_NOT_FOUND", "Import not found");
     }
     return updated;
+  }
+
+  async getSummary(id: string): Promise<ImportSummary> {
+    await this.getImport(id); // 404s consistently if the import doesn't exist
+    return this.deps.importRepository.getSummary(id);
+  }
+
+  async getRejections(id: string, limit: number, cursor: string | null): Promise<RejectionPage> {
+    await this.getImport(id);
+    return this.deps.importRepository.getRejections(id, limit, cursor);
   }
 }

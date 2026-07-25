@@ -215,3 +215,52 @@ export function createCancelImportHandler(importService: ImportService) {
     }
   };
 }
+
+export function createSummaryHandler(importService: ImportService) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      const summary = await importService.getSummary(req.params.id);
+      res.status(httpStatusCodes.OK).json({
+        importId: req.params.id,
+        totals: summary.totals,
+        byCurrency: summary.byCurrency.map((c) => ({
+          currency: c.currency,
+          transactionCount: c.transactionCount,
+          totalAmount: Number(c.totalAmount),
+        })),
+        byRiskLevel: summary.byRiskLevel,
+      });
+    } catch (err) {
+      sendError(req, res, err);
+    }
+  };
+}
+
+const DEFAULT_REJECTIONS_LIMIT = 50;
+const MAX_REJECTIONS_LIMIT = 200;
+
+export function createRejectionsHandler(importService: ImportService) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      const rawLimit = Number(req.query.limit);
+      const limit =
+        Number.isFinite(rawLimit) && rawLimit > 0
+          ? Math.min(rawLimit, MAX_REJECTIONS_LIMIT)
+          : DEFAULT_REJECTIONS_LIMIT;
+      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : null;
+
+      const page = await importService.getRejections(req.params.id, limit, cursor);
+      res.status(httpStatusCodes.OK).json({
+        items: page.items.map((item) => ({
+          lineNumber: item.lineNumber,
+          reason: item.reasonCode,
+          message: item.message,
+          rawValue: item.rawValue,
+        })),
+        nextCursor: page.nextCursor,
+      });
+    } catch (err) {
+      sendError(req, res, err);
+    }
+  };
+}

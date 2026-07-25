@@ -54,7 +54,10 @@ model Import {
   // Byte offset into the stored file up to which processing has been
   // durably committed, enabling resume-from-checkpoint via MinIO ranged
   // GETs instead of reprocessing already-committed bytes after a retry.
-  checkpointOffset BigInt       @default(0)
+  checkpointOffset     BigInt   @default(0)
+  // The line number that checkpointOffset corresponds to, so rejected
+  // records and progress reporting stay accurate across a resume.
+  checkpointLineNumber Int      @default(0)
 
   cancelRequested  Boolean      @default(false)
   failureReason    String?

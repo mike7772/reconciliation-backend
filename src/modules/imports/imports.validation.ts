@@ -29,3 +29,36 @@ export const errorResponseSchema = z.object({
     requestId: z.string(),
   }),
 });
+
+export const summaryResponseSchema = z.object({
+  importId: z.string(),
+  totals: z.object({
+    accepted: z.number(),
+    rejected: z.number(),
+    duplicates: z.number(),
+  }),
+  byCurrency: z.array(
+    z.object({
+      currency: z.string(),
+      transactionCount: z.number(),
+      totalAmount: z.number(),
+    })
+  ),
+  byRiskLevel: z.object({
+    low: z.number(),
+    medium: z.number(),
+    high: z.number(),
+  }),
+});
+
+export const rejectionsResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      lineNumber: z.number(),
+      reason: z.string(),
+      message: z.string(),
+      rawValue: z.unknown(),
+    })
+  ),
+  nextCursor: z.string().nullable(),
+});

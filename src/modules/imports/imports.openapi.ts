@@ -1,6 +1,12 @@
 import { z } from "../../shared/utils/zod";
 import registry from "../../config/openapi/registry";
-import { importResponseSchema, importStatusResponseSchema, errorResponseSchema } from "./imports.validation";
+import {
+  importResponseSchema,
+  importStatusResponseSchema,
+  errorResponseSchema,
+  summaryResponseSchema,
+  rejectionsResponseSchema,
+} from "./imports.validation";
 
 registry.registerPath({
   method: "post",
@@ -64,6 +70,50 @@ registry.registerPath({
     200: {
       description: "Cancellation requested (or import was already in a terminal state)",
       content: { "application/json": { schema: z.object({ id: z.string(), status: z.string() }) } },
+    },
+    404: {
+      description: "Import not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/imports/{id}/summary",
+  tags: ["Imports"],
+  security: [],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    200: {
+      description: "Reconciliation summary based on persisted processing results",
+      content: { "application/json": { schema: summaryResponseSchema } },
+    },
+    404: {
+      description: "Import not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/imports/{id}/rejections",
+  tags: ["Imports"],
+  security: [],
+  request: {
+    params: z.object({ id: z.string() }),
+    query: z.object({
+      limit: z.string().optional().describe("Default 50, max 200"),
+      cursor: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Cursor-paginated rejected records",
+      content: { "application/json": { schema: rejectionsResponseSchema } },
     },
     404: {
       description: "Import not found",

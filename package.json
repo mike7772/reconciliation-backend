@@ -8,8 +8,9 @@
   },
   "scripts": {
     "start": "npm run transpile && node build/server.js",
-    "dev": "concurrently \"npm:watch\" \"npm:serve\"",
+    "dev": "concurrently \"npm:watch\" \"npm:serve\" \"npm:serve:worker\"",
     "serve": "nodemon server.ts",
+    "serve:worker": "nodemon worker.ts",
     "migrate:dev": "prisma migrate dev --name init",
     "watch": "npx tsc -w",
     "transpile": "npx tsc",
@@ -46,7 +47,6 @@
     "redis": "^4.6.13",
     "socket.io": "^4.7.4",
     "swagger-ui-express": "^5.0.0",
-    "winston": "^3.11.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
