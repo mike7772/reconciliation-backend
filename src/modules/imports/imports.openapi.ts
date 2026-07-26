@@ -17,6 +17,17 @@ registry.registerPath({
     headers: z.object({
       "Idempotency-Key": z.string().describe("Required. Repeating the same key returns the existing import."),
     }),
+    body: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: z.object({
+            providerId: z.string().min(1).max(200).describe("Required. Must be sent before the file part."),
+            file: z.string().openapi({ type: "string", format: "binary" }).describe("The NDJSON file (.ndjson/.jsonl)."),
+          }),
+        },
+      },
+    },
   },
   responses: {
     202: {
