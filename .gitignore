@@ -75,3 +75,5 @@ logs/
 # End of https://www.gitignore.io/api/node,visualstudiocode
 
 links.txt
+# Generated benchmark fixtures - large, regenerable via npm run generate:data
+test/fixtures/*.ndjson

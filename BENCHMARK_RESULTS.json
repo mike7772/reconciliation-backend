@@ -1,0 +1,51 @@
+{
+  "dataset": {
+    "file": "test/fixtures/generated-50k.ndjson",
+    "fileSizeMiB": 10.1,
+    "recordsProcessed": 50000,
+    "accepted": 49801,
+    "rejected": 150,
+    "duplicates": 49
+  },
+  "timing": {
+    "uploadResponseMs": 828.1,
+    "processingDurationMs": 176884.5,
+    "processingDurationSeconds": 176.88,
+    "recordsPerSecond": 282.7
+  },
+  "apiLatencyDuringProcessing": {
+    "healthLiveMs": {
+      "count": 174,
+      "p50": 5.21,
+      "p95": 8.18,
+      "p99": 18.85,
+      "max": 34.41
+    },
+    "importStatusMs": {
+      "count": 566,
+      "p50": 10.68,
+      "p95": 17.57,
+      "p99": 25.08,
+      "max": 61.4
+    }
+  },
+  "resourceUsageDuringProcessing": {
+    "peakResidentMemoryMiB": 185.2,
+    "peakHeapUsedMiB": 47.3,
+    "peakEventLoopLagMs": 22.09,
+    "peakEventLoopUtilization": 0.2096,
+    "sampleCount": 348
+  },
+  "configuration": {
+    "workerConcurrency": 2,
+    "dbBatchSize": 500,
+    "note": "dbBatchSize is the BATCH_SIZE constant in imports.processor.ts, not independently configurable via env"
+  },
+  "machine": {
+    "platform": "linux",
+    "arch": "x64",
+    "cpuModel": "AMD Ryzen 7 5700U with Radeon Graphics",
+    "cpuCount": 4,
+    "totalMemoryGiB": 3.8
+  }
+}
