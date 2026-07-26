@@ -5,6 +5,7 @@ import registry from "./registry";
 // the shared registry above. Add new modules here as they're built.
 import "../../modules/auth/auth.openapi";
 import "../../modules/imports/imports.openapi";
+import "../../modules/health/health.openapi";
 
 export default function generateOpenApiDocument() {
   const generator = new OpenApiGeneratorV3(registry.definitions);
