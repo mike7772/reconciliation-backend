@@ -1,0 +1,181 @@
+# Reconciliation Backend
+
+A production-oriented Node.js service that imports large NDJSON transaction
+files, processes them asynchronously (streaming parse -> validate ->
+normalize -> fingerprint -> risk score -> persist), and exposes the results
+through an HTTP API - without blocking on the import itself and without
+loading the file into memory.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how it's built, [docs/adr/](docs/adr/)
+for the reasoning behind the key decisions, [BENCHMARK.md](BENCHMARK.md) for
+performance results, and [SUBMISSION.md](SUBMISSION.md) for a summary of
+trade-offs and known gaps.
+
+## Requirements
+
+- Node.js 22+
+- Docker + Docker Compose (`docker-compose` v1 binary or the `docker compose`
+  v2 plugin - both work with the commands below)
+
+## Running Everything with Docker Compose
+
+This is the fastest path to a fully working system - Postgres, Redis, MinIO,
+the API server, and the worker all start together:
+
+```bash
+docker compose up --build
+# or, if you only have the standalone v1 binary:
+docker-compose up --build
+```
+
+This runs database migrations automatically on startup (`prisma migrate
+deploy`, in both the `app` and `worker` containers - safe to run twice). Once
+up:
+
+- API: http://localhost:4000
+- Swagger/OpenAPI UI: http://localhost:4000/api-docs
+- Worker metrics: http://localhost:9465/metrics
+- MinIO console: http://localhost:9011 (`minioadmin`/`minioadmin` by default)
+
+## Running Locally (without Docker for the app itself)
+
+Bring up just the infrastructure, then run the app/worker directly:
+
+```bash
+docker compose up -d postgres redis minio minio-init
+cp .env.example .env   # adjust values if needed
+npm install
+npx prisma migrate deploy
+npm run dev             # runs tsc --watch, the API server, and the worker together
+```
+
+Or run each process independently:
+
+```bash
+npm run serve           # API server only (nodemon server.ts)
+npm run serve:worker    # worker only (nodemon worker.ts)
+```
+
+## Authentication
+
+`POST /api/auth/register` and `POST /api/auth/login` are public (they issue
+the credentials). Every `/v1/imports*` endpoint requires a bearer token:
+
+```bash
+curl -X POST http://localhost:4000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jane","email":"jane@example.com","password":"password123"}'
+
+TOKEN=$(curl -s -X POST http://localhost:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane@example.com","password":"password123"}' | jq -r .data.token)
+
+curl http://localhost:4000/v1/imports/some-id -H "Authorization: Bearer $TOKEN"
+```
+
+`/health/live`, `/health/ready`, and `/metrics` stay unauthenticated -
+monitoring tools and load balancers need to reach them without credentials.
+
+## Running Migrations
+
+```bash
+npx prisma migrate deploy   # applies existing migrations (used by Docker)
+npm run migrate:dev         # creates + applies a new migration during development
+```
+
+## Generating Test Data
+
+```bash
+npm run generate:data -- --records=500000
+# writes to test/fixtures/generated.ndjson by default
+# --out=<path> and --provider=<id> are also accepted
+```
+
+The generated file has a fixed, documented mix so every rejection path is
+exercised at scale: ~1% invalid JSON, ~1% missing a required field, ~1%
+unsupported currency, ~0.5% in-file duplicate `transactionId`s, and one
+oversized description per 1,000 lines.
+
+## Running Tests
+
+```bash
+npm run test:unit          # 43 tests, no external dependencies (fakes only)
+npm run test:integration   # 15 tests, requires a running test Postgres database
+npm run test:all           # both together
+```
+
+Integration tests point at a separate database
+(`reconciliation_system_test`, same Postgres instance) so they never touch
+development data, and clean up their own rows between tests. One-time setup:
+
+```bash
+docker compose up -d postgres
+PGPASSWORD=reconciliation_password psql -h localhost -p 5435 -U reconciliation_user -d postgres \
+  -c "CREATE DATABASE reconciliation_system_test;"
+DATABASE_URL="postgresql://reconciliation_user:reconciliation_password@localhost:5435/reconciliation_system_test?schema=public" \
+  npx prisma migrate deploy
+```
+
+## Running the Benchmark
+
+Requires the app + worker to be running (Docker Compose or locally) and a
+generated fixture:
+
+```bash
+npm run generate:data -- --records=500000
+npm run benchmark -- --file=test/fixtures/generated.ndjson
+```
+
+This uploads the file via a real streaming multipart request, polls status
+until the import finishes, and throughout the run samples `GET /health/live`
+plus both the app's and worker's `/metrics` to measure API latency, memory,
+and event-loop behavior *while an import is actively processing*. Results
+are printed and written to `BENCHMARK_RESULTS.json`. See
+[BENCHMARK.md](BENCHMARK.md) for interpreted results.
+
+## Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `4000` | API server port |
+| `NODE_ENV` | `dev` | Affects only rate-limit config |
+| `RATE_LIMIT_TIME` / `RATE_LIMIT_REQUEST` | `100` / `100` | Global rate limiter window/max |
+| `MAX_UPLOAD_BYTES` | `2147483648` (2 GiB) | Hard cap on uploaded file size |
+| `MAX_CONCURRENT_IMPORTS` | `2` | BullMQ worker concurrency (bounded parallel imports) |
+| `DB_RETRY_MAX_ATTEMPTS` | `4` | Retry attempts for transient DB errors during batch commits |
+| `DB_RETRY_BASE_DELAY_MS` / `DB_RETRY_MAX_DELAY_MS` | `100` / `2000` | Exponential backoff bounds |
+| `WORKER_METRICS_PORT` | `9465` | Worker's own Prometheus port (separate process/registry) |
+| `SHUTDOWN_GRACE_PERIOD_MS` | `30000` | Max time graceful shutdown waits before forcing exit |
+| `JWT_SECRET` / `JWT_EXPIRES_IN` | - / `1d` | Auth token signing |
+| `DATABASE_URL` | - | Postgres connection string |
+| `REDIS_URL` | - | Redis connection string (used by both the cache client and BullMQ) |
+| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | see `.env.example` | MinIO connection |
+
+Full defaults: [.env.example](.env.example). Docker Compose overrides
+`DATABASE_URL`/`REDIS_URL`/`MINIO_ENDPOINT`/`MINIO_PORT` to point at
+container DNS names (`postgres`, `redis`, `minio`) rather than `localhost`.
+
+## Known Limitations
+
+- **No public deployment** - this runs locally / via the included Docker
+  Compose setup only.
+- **MIME-type validation is extension-based** (`.ndjson`/`.jsonl`), not
+  content-sniffed - there's no reliable magic-byte signature for NDJSON to
+  sniff against, so the client-declared MIME type is stored but not enforced
+  beyond the extension check.
+- **Rate limiting is global**, not per-provider (per-provider limits are
+  listed as a bonus feature in the spec, not a requirement).
+- **No SSE/WebSocket progress push, OpenTelemetry tracing, dead-letter
+  queue, or resumable client uploads** - all listed as bonus features and
+  intentionally out of scope for this submission.
+- **Queue depth is not actively capped** - a very fast burst of upload
+  requests would grow the BullMQ waiting queue rather than being rejected
+  with `429`; it's visible via the `import_queue_waiting` metric but not
+  bounded. Documented as a deliberate simplicity trade-off rather than an
+  oversight - see `ARCHITECTURE.md` §11.
+- **`byCurrency`/`byRiskLevel` summaries are computed at read time** via
+  `GROUP BY` queries rather than maintained as running aggregates during
+  processing - see `ARCHITECTURE.md` §4 for the reasoning.
+- **The 500,000-record benchmark run's exact numbers depend on the machine
+  it's run on** (this was developed and benchmarked on a 4-vCPU / ~3.8 GiB
+  RAM environment) - see `BENCHMARK.md`.
