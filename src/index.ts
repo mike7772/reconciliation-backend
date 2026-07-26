@@ -18,6 +18,8 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import * as swaggerUi from "swagger-ui-express";
 import generateOpenApiDocument from "./config/openapi/document";
+import { buildBullBoardRouter, BULL_BOARD_BASE_PATH } from "./config/bullBoard";
+import basicAuth from "./shared/middleware/basicAuth";
 
 export default class Server {
   constructor(
@@ -91,5 +93,17 @@ export default class Server {
     );
     app.use(compression());
     app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(generateOpenApiDocument()));
+
+    // Basic Auth, not the JWT bearer scheme used elsewhere - this is a
+    // browser-navigated admin page, not an API call, so there's no way to
+    // attach an Authorization: Bearer header to a plain page load.
+    app.use(
+      BULL_BOARD_BASE_PATH,
+      basicAuth(
+        process.env.ADMIN_DASHBOARD_USER || "admin",
+        process.env.ADMIN_DASHBOARD_PASSWORD || "change-me"
+      ),
+      buildBullBoardRouter(this.container)
+    );
   }
 }

@@ -34,6 +34,9 @@ up:
 
 - API: http://localhost:4000
 - Swagger/OpenAPI UI: http://localhost:4000/api-docs
+- BullMQ dashboard: http://localhost:4000/admin/queues (`admin`/`change-me` by
+  default - HTTP Basic Auth, not the JWT bearer scheme, since this is a
+  browser-navigated page)
 - Worker metrics: http://localhost:9465/metrics
 - MinIO console: http://localhost:9011 (`minioadmin`/`minioadmin` by default)
 
@@ -147,6 +150,7 @@ are printed and written to `BENCHMARK_RESULTS.json`. See
 | `WORKER_METRICS_PORT` | `9465` | Worker's own Prometheus port (separate process/registry) |
 | `SHUTDOWN_GRACE_PERIOD_MS` | `30000` | Max time graceful shutdown waits before forcing exit |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | - / `1d` | Auth token signing |
+| `ADMIN_DASHBOARD_USER` / `ADMIN_DASHBOARD_PASSWORD` | `admin` / `change-me` | HTTP Basic Auth credentials for the BullMQ dashboard (`/admin/queues`) |
 | `DATABASE_URL` | - | Postgres connection string |
 | `REDIS_URL` | - | Redis connection string (used by both the cache client and BullMQ) |
 | `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | see `.env.example` | MinIO connection |
