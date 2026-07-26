@@ -7,6 +7,7 @@ import checkConnections from "./src/config/checkConnections";
 import { buildImportProcessor } from "./src/modules/imports/imports.composition";
 import { IMPORT_QUEUE_NAME, ImportJobData } from "./src/modules/imports/imports.jobQueue";
 import { startMetricsHttpServer } from "./src/shared/adapters/metricsHttpServer";
+import { startEventLoopUtilizationGauge } from "./src/shared/adapters/eventLoopUtilization";
 import { registerGracefulShutdown } from "./src/shared/utils/gracefulShutdown";
 
 const MAX_CONCURRENT_IMPORTS = Number(process.env.MAX_CONCURRENT_IMPORTS) || 2;
@@ -43,6 +44,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const metricsServer = startMetricsHttpServer(container.metricsRegistry, WORKER_METRICS_PORT);
+  startEventLoopUtilizationGauge(container.metrics);
 
   container.logger.info("Import worker started", {
     queue: IMPORT_QUEUE_NAME,

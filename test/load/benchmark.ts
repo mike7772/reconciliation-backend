@@ -40,6 +40,7 @@ interface LatencySample {
 
 interface MetricsSample {
   atMs: number;
+  source: "app" | "worker";
   residentMemoryBytes: number | null;
   heapUsedBytes: number | null;
   eventLoopLagSeconds: number | null;
@@ -51,20 +52,21 @@ function parsePromMetric(text: string, name: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-async function sampleMetrics(url: string): Promise<MetricsSample> {
+async function sampleMetrics(url: string, source: "app" | "worker"): Promise<MetricsSample> {
   const atMs = Date.now();
   try {
     const res = await fetch(url);
     const text = await res.text();
     return {
       atMs,
+      source,
       residentMemoryBytes: parsePromMetric(text, "process_resident_memory_bytes"),
       heapUsedBytes: parsePromMetric(text, "nodejs_heap_size_used_bytes"),
       eventLoopLagSeconds: parsePromMetric(text, "nodejs_eventloop_lag_seconds"),
       eventLoopUtilization: parsePromMetric(text, "nodejs_eventloop_utilization"),
     };
   } catch {
-    return { atMs, residentMemoryBytes: null, heapUsedBytes: null, eventLoopLagSeconds: null, eventLoopUtilization: null };
+    return { atMs, source, residentMemoryBytes: null, heapUsedBytes: null, eventLoopLagSeconds: null, eventLoopUtilization: null };
   }
 }
 
@@ -156,6 +158,10 @@ function uploadFile(
   });
 }
 
+function numOrNull(value: number | null, transform: (v: number) => number = (v) => v): number | null {
+  return value === null ? null : Number(transform(value).toFixed(2));
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -193,8 +199,8 @@ async function main(): Promise<void> {
       });
 
       const [appMetrics, workerMetrics] = await Promise.all([
-        sampleMetrics(`${BASE_URL}/metrics`),
-        sampleMetrics(WORKER_METRICS_URL),
+        sampleMetrics(`${BASE_URL}/metrics`, "app"),
+        sampleMetrics(WORKER_METRICS_URL, "worker"),
       ]);
       metricsSamples.push(appMetrics, workerMetrics);
 
@@ -244,10 +250,13 @@ async function main(): Promise<void> {
   const healthLatencies = latencySamples.filter((s) => s.endpoint === "GET /health/live").map((s) => s.durationMs);
   const statusLatencies = latencySamples.filter((s) => s.endpoint === "GET /v1/imports/:id").map((s) => s.durationMs);
 
-  const memSamples = metricsSamples.map((s) => s.residentMemoryBytes).filter((v): v is number => v !== null);
-  const heapSamples = metricsSamples.map((s) => s.heapUsedBytes).filter((v): v is number => v !== null);
-  const lagSamples = metricsSamples.map((s) => s.eventLoopLagSeconds).filter((v): v is number => v !== null);
-  const utilSamples = metricsSamples.map((s) => s.eventLoopUtilization).filter((v): v is number => v !== null);
+  function peakFor(source: "app" | "worker", field: keyof MetricsSample): number | null {
+    const values = metricsSamples
+      .filter((s) => s.source === source)
+      .map((s) => s[field] as number | null)
+      .filter((v): v is number => v !== null);
+    return values.length ? Math.max(...values) : null;
+  }
 
   const processed = finalStatus?.progress?.processed ?? 0;
   const throughput = processed / (processingDurationMs / 1000);
@@ -284,10 +293,18 @@ async function main(): Promise<void> {
       },
     },
     resourceUsageDuringProcessing: {
-      peakResidentMemoryMiB: memSamples.length ? Number((Math.max(...memSamples) / 1024 / 1024).toFixed(1)) : null,
-      peakHeapUsedMiB: heapSamples.length ? Number((Math.max(...heapSamples) / 1024 / 1024).toFixed(1)) : null,
-      peakEventLoopLagMs: lagSamples.length ? Number((Math.max(...lagSamples) * 1000).toFixed(2)) : null,
-      peakEventLoopUtilization: utilSamples.length ? Number(Math.max(...utilSamples).toFixed(4)) : null,
+      app: {
+        peakResidentMemoryMiB: numOrNull(peakFor("app", "residentMemoryBytes"), (v) => v / 1024 / 1024),
+        peakHeapUsedMiB: numOrNull(peakFor("app", "heapUsedBytes"), (v) => v / 1024 / 1024),
+        peakEventLoopLagMs: numOrNull(peakFor("app", "eventLoopLagSeconds"), (v) => v * 1000),
+        peakEventLoopUtilization: numOrNull(peakFor("app", "eventLoopUtilization")),
+      },
+      worker: {
+        peakResidentMemoryMiB: numOrNull(peakFor("worker", "residentMemoryBytes"), (v) => v / 1024 / 1024),
+        peakHeapUsedMiB: numOrNull(peakFor("worker", "heapUsedBytes"), (v) => v / 1024 / 1024),
+        peakEventLoopLagMs: numOrNull(peakFor("worker", "eventLoopLagSeconds"), (v) => v * 1000),
+        peakEventLoopUtilization: numOrNull(peakFor("worker", "eventLoopUtilization")),
+      },
       sampleCount: metricsSamples.length,
     },
     configuration: {

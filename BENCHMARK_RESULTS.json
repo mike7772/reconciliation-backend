@@ -8,33 +8,41 @@
     "duplicates": 49
   },
   "timing": {
-    "uploadResponseMs": 828.1,
-    "processingDurationMs": 176884.5,
-    "processingDurationSeconds": 176.88,
-    "recordsPerSecond": 282.7
+    "uploadResponseMs": 1078.1,
+    "processingDurationMs": 172688.4,
+    "processingDurationSeconds": 172.69,
+    "recordsPerSecond": 289.5
   },
   "apiLatencyDuringProcessing": {
     "healthLiveMs": {
-      "count": 174,
-      "p50": 5.21,
-      "p95": 8.18,
-      "p99": 18.85,
-      "max": 34.41
+      "count": 170,
+      "p50": 4.81,
+      "p95": 7.18,
+      "p99": 14.26,
+      "max": 22.65
     },
     "importStatusMs": {
-      "count": 566,
-      "p50": 10.68,
-      "p95": 17.57,
-      "p99": 25.08,
-      "max": 61.4
+      "count": 555,
+      "p50": 9.76,
+      "p95": 14.85,
+      "p99": 20.57,
+      "max": 32.89
     }
   },
   "resourceUsageDuringProcessing": {
-    "peakResidentMemoryMiB": 185.2,
-    "peakHeapUsedMiB": 47.3,
-    "peakEventLoopLagMs": 22.09,
-    "peakEventLoopUtilization": 0.2096,
-    "sampleCount": 348
+    "app": {
+      "peakResidentMemoryMiB": 97.3,
+      "peakHeapUsedMiB": 49.98,
+      "peakEventLoopLagMs": 31.45,
+      "peakEventLoopUtilization": 0.24
+    },
+    "worker": {
+      "peakResidentMemoryMiB": 193.55,
+      "peakHeapUsedMiB": 44.06,
+      "peakEventLoopLagMs": 24.02,
+      "peakEventLoopUtilization": null
+    },
+    "sampleCount": 340
   },
   "configuration": {
     "workerConcurrency": 2,
