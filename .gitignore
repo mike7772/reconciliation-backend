@@ -15,6 +15,7 @@ perf-logs
 v8.log
 *.js
 *.js.map
+!jest.config.js
 
 # Runtime data
 pids
