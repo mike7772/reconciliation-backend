@@ -38,9 +38,16 @@ a malicious filename, since the filename is stored purely as metadata
   500,000-record file only costs reprocessing since the last committed
   checkpoint (at most one batch of 500 records), not the whole file.
 - **Positive**: MinIO is S3-API-compatible, so the same `FileStorage`
-  interface would work unmodified against real AWS S3 in a production
-  deployment - the port/adapter boundary makes that a configuration change,
-  not a code change.
+  interface works unmodified against a real S3-compatible provider in
+  production - the port/adapter boundary makes that a configuration change,
+  not a code change. This is no longer hypothetical: `src/config/
+  objectStorage.ts` constructs the same `minio` client library against
+  either local MinIO (dev) or Cloudflare R2 (`NODE_ENV=production`),
+  selected purely by environment, with zero changes to `MinioFileStorage.ts`,
+  the `FileStorage` port, or anything in `imports.service.ts`/`imports.processor.ts`.
+  Verified end-to-end against a live R2 bucket: bucket creation, upload,
+  download, and a full import (upload -> worker reads from R2 -> processes
+  -> persists -> completed) all behaved identically to the MinIO path.
 - **Negative**: introduces MinIO as a required piece of infrastructure
   (mitigated: it runs in `docker-compose.yml` alongside Postgres/Redis, and
   was already called for by the assignment's infrastructure list).

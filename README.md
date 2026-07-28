@@ -139,7 +139,7 @@ are printed and written to `BENCHMARK_RESULTS.json`. See
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `4000` | API server port |
-| `NODE_ENV` | `dev` | Affects only rate-limit config |
+| `NODE_ENV` | `dev` | Affects rate-limit config, and selects the object-storage backend: MinIO unless set to `production`, in which case Cloudflare R2 is used (see `src/config/objectStorage.ts`) |
 | `RATE_LIMIT_TIME` / `RATE_LIMIT_REQUEST` | `100` / `100` | Global rate limiter window/max |
 | `MAX_UPLOAD_BYTES` | `2147483648` (2 GiB) | Hard cap on uploaded file size |
 | `MAX_CONCURRENT_IMPORTS` | `2` | BullMQ worker concurrency (bounded parallel imports) |
@@ -151,7 +151,8 @@ are printed and written to `BENCHMARK_RESULTS.json`. See
 | `ADMIN_DASHBOARD_USER` / `ADMIN_DASHBOARD_PASSWORD` | `admin` / `password` | HTTP Basic Auth credentials for the BullMQ dashboard (`/admin/queues`) |
 | `DATABASE_URL` | - | Postgres connection string |
 | `REDIS_URL` | - | Redis connection string (used by both the cache client and BullMQ) |
-| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | see `.env.example` | MinIO connection |
+| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | see `.env.example` | MinIO connection (used when `NODE_ENV` is not `production`) |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_PUBLIC_URL` | - | Cloudflare R2 connection (used when `NODE_ENV=production` - see `src/config/objectStorage.ts`) |
 
 Full defaults: [.env.example](.env.example). Docker Compose overrides
 `DATABASE_URL`/`REDIS_URL`/`MINIO_ENDPOINT`/`MINIO_PORT` to point at

@@ -2,7 +2,7 @@ import { Registry, collectDefaultMetrics } from "prom-client";
 import IORedis from "ioredis";
 import prisma from "../config/prisma";
 import redis from "../config/redis";
-import minio, { MINIO_BUCKET } from "../config/minio";
+import minio, { MINIO_BUCKET } from "../config/objectStorage";
 import { Logger } from "../shared/ports/Logger";
 import { Clock } from "../shared/ports/Clock";
 import { IdGenerator } from "../shared/ports/IdGenerator";
