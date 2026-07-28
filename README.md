@@ -34,7 +34,7 @@ up:
 
 - API: http://localhost:4000
 - Swagger/OpenAPI UI: http://localhost:4000/api-docs
-- BullMQ dashboard: http://localhost:4000/admin/queues (`admin`/`change-me` by
+- BullMQ dashboard: http://localhost:4000/admin/queues (`admin`/`password` by
   default - HTTP Basic Auth, not the JWT bearer scheme, since this is a
   browser-navigated page)
 - Worker metrics: http://localhost:9465/metrics
@@ -103,21 +103,19 @@ oversized description per 1,000 lines.
 
 ```bash
 npm run test:unit          # 43 tests, no external dependencies (fakes only)
-npm run test:integration   # 15 tests, requires a running test Postgres database
+npm run test:integration   # 15 tests, requires Postgres reachable (e.g. docker compose up -d postgres)
 npm run test:all           # both together
 ```
 
-Integration tests point at a separate database
-(`reconciliation_system_test`, same Postgres instance) so they never touch
-development data, and clean up their own rows between tests. One-time setup:
-
-```bash
-docker compose up -d postgres
-PGPASSWORD=reconciliation_password psql -h localhost -p 5435 -U reconciliation_user -d postgres \
-  -c "CREATE DATABASE reconciliation_system_test;"
-DATABASE_URL="postgresql://reconciliation_user:reconciliation_password@localhost:5435/reconciliation_system_test?schema=public" \
-  npx prisma migrate deploy
-```
+Integration tests point at a separate database (`reconciliation_system_test`,
+same Postgres instance) so they never touch development data, and clean up
+their own rows between tests. **No manual database preparation is
+required**: `test:integration` and `test:all` each run a `pretest` script
+(`test/setupTestDb.ts`) automatically first, which creates the test database
+if it doesn't exist yet and applies migrations - safe to run every time,
+whether it's the first run ever or the hundredth. The only prerequisite is
+that Postgres itself is reachable (`docker compose up -d postgres`, or the
+full stack).
 
 ## Running the Benchmark
 
@@ -150,7 +148,7 @@ are printed and written to `BENCHMARK_RESULTS.json`. See
 | `WORKER_METRICS_PORT` | `9465` | Worker's own Prometheus port (separate process/registry) |
 | `SHUTDOWN_GRACE_PERIOD_MS` | `30000` | Max time graceful shutdown waits before forcing exit |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | - / `1d` | Auth token signing |
-| `ADMIN_DASHBOARD_USER` / `ADMIN_DASHBOARD_PASSWORD` | `admin` / `change-me` | HTTP Basic Auth credentials for the BullMQ dashboard (`/admin/queues`) |
+| `ADMIN_DASHBOARD_USER` / `ADMIN_DASHBOARD_PASSWORD` | `admin` / `password` | HTTP Basic Auth credentials for the BullMQ dashboard (`/admin/queues`) |
 | `DATABASE_URL` | - | Postgres connection string |
 | `REDIS_URL` | - | Redis connection string (used by both the cache client and BullMQ) |
 | `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | see `.env.example` | MinIO connection |

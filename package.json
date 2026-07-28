@@ -17,7 +17,9 @@
     "lint": "tslint -c tslint.json -p tsconfig.json",
     "test": "jest --testPathPatterns=test/unit",
     "test:unit": "jest --testPathPatterns=test/unit",
+    "pretest:integration": "ts-node --transpile-only test/setupTestDb.ts",
     "test:integration": "jest --testPathPatterns=test/integration --runInBand",
+    "pretest:all": "ts-node --transpile-only test/setupTestDb.ts",
     "test:all": "jest --runInBand",
     "generate:data": "ts-node --transpile-only test/load/generateData.ts",
     "benchmark": "ts-node --transpile-only test/load/benchmark.ts"

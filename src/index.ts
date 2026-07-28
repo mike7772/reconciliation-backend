@@ -101,7 +101,7 @@ export default class Server {
       BULL_BOARD_BASE_PATH,
       basicAuth(
         process.env.ADMIN_DASHBOARD_USER || "admin",
-        process.env.ADMIN_DASHBOARD_PASSWORD || "change-me"
+        process.env.ADMIN_DASHBOARD_PASSWORD || "password"
       ),
       buildBullBoardRouter(this.container)
     );

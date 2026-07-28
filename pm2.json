@@ -1,7 +1,0 @@
-{
-    "apps": [{
-        "name": "reconciliation-backend",
-        "script": "npm",
-        "args": "start"
-    }]
-}
