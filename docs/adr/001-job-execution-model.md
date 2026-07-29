@@ -63,3 +63,16 @@ forcing one library to serve both roles.
   worker and API already need to agree on the same database schema, so
   sharing one codebase and repository layer, split only at the process
   boundary, is simpler and has one fewer thing that can drift out of sync.
+
+## Deployment-Environment Note (not a reversal of this decision)
+
+On the free-tier Render deployment specifically (see `render.yaml` and
+README's "Deploying to Render"), the API server and worker run as **one**
+Render service via `render-start.sh` (`concurrently`), rather than as the
+two separate services this ADR describes - purely to avoid requiring a
+paid Background Worker plan. Locally (`docker-compose.yml`) and in the
+architecture this ADR documents, they remain two independent processes.
+The trade-off is explicit and reversible: on that single Render service, a
+crash takes both processes down together instead of failing independently,
+and the worker's `/metrics` isn't externally reachable - both are
+documented, not silent, limitations of that one deployment target.
