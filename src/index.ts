@@ -80,7 +80,27 @@ export default class Server {
     app.use(json());
     app.use(urlencoded({ extended: true }));
     app.use(cookieParser());
-    app.use(helmet());
+    app.use(
+      helmet({
+        // Helmet's default CSP includes upgrade-insecure-requests, which
+        // tells browsers to rewrite every HTTP subresource request (CSS/
+        // JS/images) to HTTPS. This deployment is served over plain HTTP
+        // (no TLS-terminating reverse proxy in front of it), so those
+        // upgraded requests hit a server that doesn't speak TLS at all -
+        // ERR_SSL_PROTOCOL_ERROR - breaking anything that loads its own
+        // subresources (Swagger UI, the BullMQ dashboard). The JSON API
+        // itself is unaffected since it has no subresources to upgrade.
+        // Removing just this directive, not the rest of Helmet's
+        // defaults. If this is ever put behind real HTTPS, this
+        // override should be removed.
+        contentSecurityPolicy: {
+          directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "upgrade-insecure-requests": null,
+          },
+        },
+      })
+    );
     app.use(rateLimiter()); //  apply to all requests
     app.set("trust proxy", false); // only if the server is behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
     app.use(
