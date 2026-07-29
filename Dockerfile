@@ -10,8 +10,12 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 RUN npx prisma generate
-RUN npm run transpile
+# Type-check as a build-time gate (fails the image build on type errors)
+# without emitting build/ output - the container runs the TypeScript
+# source directly via ts-node at runtime instead, so there's no compiled
+# build/ directory the runtime depends on ever being present/in sync.
+RUN npx tsc --noEmit
 
 EXPOSE 4000
 
-CMD ["node", "build/server.js"]
+CMD ["npx", "ts-node", "--transpile-only", "server.ts"]

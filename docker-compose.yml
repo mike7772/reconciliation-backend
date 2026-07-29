@@ -74,7 +74,7 @@ services:
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-    command: sh -c "npx prisma migrate deploy && node build/server.js"
+    command: sh -c "npx prisma migrate deploy && npx ts-node --transpile-only server.ts"
     ports:
       - "${PORT:-4000}:4000"
     depends_on:
@@ -102,7 +102,7 @@ services:
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-    command: sh -c "npx prisma migrate deploy && node build/worker.js"
+    command: sh -c "npx prisma migrate deploy && npx ts-node --transpile-only worker.ts"
     ports:
       - "${WORKER_METRICS_PORT:-9465}:9465"
     depends_on:

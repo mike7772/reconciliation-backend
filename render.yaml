@@ -33,7 +33,12 @@ services:
     name: reconciliation-app
     runtime: docker
     dockerfilePath: ./Dockerfile
-    dockerCommand: "sh -c 'npx prisma migrate deploy && node build/server.js'"
+    # dockerCommand is NOT run through a shell, so it must be a plain
+    # command with no && chaining - migrations run separately via
+    # preDeployCommand (Render's dedicated pre-deploy hook), which IS
+    # run before this command's process starts serving traffic.
+    dockerCommand: npx ts-node --transpile-only server.ts
+    preDeployCommand: npx prisma migrate deploy
     healthCheckPath: /health/ready
     plan: free
     envVars:
@@ -90,7 +95,8 @@ services:
     name: reconciliation-worker
     runtime: docker
     dockerfilePath: ./Dockerfile
-    dockerCommand: "sh -c 'npx prisma migrate deploy && node build/worker.js'"
+    dockerCommand: npx ts-node --transpile-only worker.ts
+    preDeployCommand: npx prisma migrate deploy
     plan: free
     envVars:
       - key: NODE_ENV

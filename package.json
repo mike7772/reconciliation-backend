@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "npm run transpile && node build/server.js",
+    "start": "npx ts-node --transpile-only server.ts",
     "dev": "concurrently \"npm:watch\" \"npm:serve\" \"npm:serve:worker\"",
     "serve": "nodemon server.ts",
     "serve:worker": "nodemon worker.ts",
