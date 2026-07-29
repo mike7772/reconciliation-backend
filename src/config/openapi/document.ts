@@ -17,6 +17,10 @@ export default function generateOpenApiDocument() {
       version: "1.0.0",
       description: "Reconciliation System API documentation",
     },
-    servers: [{ url: `http://localhost:${process.env.PORT || 4000}` }],
+    // A relative URL, not an absolute localhost one: OpenAPI 3 resolves it
+    // against whatever origin is actually serving the page, so "Try it
+    // out" works correctly whether this is viewed on localhost, inside
+    // Docker, or on the deployed Render URL - no env var needed.
+    servers: [{ url: "/" }],
   });
 }
