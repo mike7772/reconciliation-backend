@@ -1,0 +1,128 @@
+# Render Blueprint - deploys the API server, the worker, managed Postgres,
+# and managed Redis. Object storage is NOT deployed here: NODE_ENV=production
+# (set below) makes the app use Cloudflare R2 instead of MinIO
+# (src/config/objectStorage.ts) - Render has no native S3-compatible
+# storage product, and R2 has a workable free tier, unlike a self-hosted
+# MinIO container which would need a paid persistent disk.
+#
+# Before deploying:
+#   1. Create an R2 bucket in the Cloudflare dashboard and generate an
+#      R2 API token (Account ID, Access Key ID, Secret Access Key).
+#   2. `render blueprint launch` (or connect the repo in the Render
+#      dashboard and it will detect this file).
+#   3. Fill in the `sync: false` variables below in the Render dashboard
+#      after the first deploy - they're deliberately left out of this file
+#      so real secrets are never committed to git.
+#
+# Locally (docker compose up --build), NODE_ENV stays "dev" and nothing
+# here applies - the app keeps using the local MinIO container as before.
+
+databases:
+  - name: reconciliation-postgres
+    plan: free
+    databaseName: reconciliation_system
+    user: reconciliation_user
+
+services:
+  - type: redis
+    name: reconciliation-redis
+    plan: free
+    ipAllowList: [] # only reachable from other services in this Render project
+
+  - type: web
+    name: reconciliation-app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "sh -c 'npx prisma migrate deploy && node build/server.js'"
+    healthCheckPath: /health/ready
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reconciliation-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: reconciliation-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: ADMIN_DASHBOARD_USER
+        value: admin
+      - key: ADMIN_DASHBOARD_PASSWORD
+        generateValue: true
+      - key: MAX_UPLOAD_BYTES
+        value: 2147483648
+      - key: MAX_CONCURRENT_IMPORTS
+        value: 2
+      - key: DB_RETRY_MAX_ATTEMPTS
+        value: 4
+      - key: DB_RETRY_BASE_DELAY_MS
+        value: 100
+      - key: DB_RETRY_MAX_DELAY_MS
+        value: 2000
+      - key: SHUTDOWN_GRACE_PERIOD_MS
+        value: 30000
+      - key: RATE_LIMIT_TIME
+        value: 100
+      - key: RATE_LIMIT_REQUEST
+        value: 100
+      # Cloudflare R2 - fill these in via the Render dashboard, not here.
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: reconciliation-system
+      - key: R2_PUBLIC_URL
+        sync: false
+
+  - type: worker
+    name: reconciliation-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "sh -c 'npx prisma migrate deploy && node build/worker.js'"
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_METRICS_PORT
+        value: 9465
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reconciliation-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: reconciliation-redis
+          property: connectionString
+      - key: MAX_CONCURRENT_IMPORTS
+        value: 2
+      - key: DB_RETRY_MAX_ATTEMPTS
+        value: 4
+      - key: DB_RETRY_BASE_DELAY_MS
+        value: 100
+      - key: DB_RETRY_MAX_DELAY_MS
+        value: 2000
+      - key: SHUTDOWN_GRACE_PERIOD_MS
+        value: 30000
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: reconciliation-system
+      - key: R2_PUBLIC_URL
+        sync: false

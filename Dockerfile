@@ -12,4 +12,6 @@ COPY . .
 RUN npx prisma generate
 RUN npm run transpile
 
+EXPOSE 4000
+
 CMD ["node", "build/server.js"]
